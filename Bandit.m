@@ -39,6 +39,7 @@ classdef Bandit
          reward = random(obj.reward_function{n});
       end
       
+      
       function n=NofLever(obj)
          n=size(obj.reward_function,2);
       end
