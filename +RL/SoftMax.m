@@ -1,29 +1,23 @@
-
-
-classdef EpsGreedy < handle
+classdef SoftMax < handle
    
    properties
-      arm_stc_vec      % cell array of arm_stc
+      arm_stc_vec      % vector of arm_stc
       action_value     % vector of the current value associated to the i-th action
       reward_matrix    % matrix with the sum of reward for each action
       number_of_update % define the number of time that i selected a lever 
-      eps              % epsilon for action selection
+      tau              % "temperature" of the boltzman 
    end
    
    
    methods
-      function obj = EpsGreedy(arm_stc,start_action_value,eps)
+      function obj = SoftMax(arm_stc,start_action_value,tau)
       
          obj.arm_stc_vec = arm_stc;
-         obj.eps = eps;
+         obj.tau = tau;
          
          %obj.number_of_update = zeros(size(obj.arm_stc_vec,2),1);
          for i=1:size(obj.arm_stc_vec,2)
             obj.number_of_update(i,:) = zeros(1,obj.arm_stc_vec{i}.n);
-         end
-         
-         for i=1:size(obj.arm_stc_vec,2)
-            obj.reward_matrix(i,:) = zeros(1,obj.arm_stc_vec{i}.n);
          end
          
          for i=1:size(obj.arm_stc_vec,2)
@@ -43,22 +37,16 @@ classdef EpsGreedy < handle
       
       function [n]=ActionSelection(obj,cur_bandit)
          
-         r = rand();
-
-         if(r<=obj.eps)
-            n = randi(obj.arm_stc_vec{cur_bandit}.n);
-            flag_max = 0;
-         else
-            [~,n] = max(obj.action_value(cur_bandit,:));
-            flag_max = 1;
-         end  
+         action_probability =  exp(obj.action_value(cur_bandit,:)./obj.tau);
+         action_probability =  action_probability/sum(action_probability,2);
+         n = SampleDiscrete(action_probability, 1, 1);
+         
       end
       
       function CleanPolicy(obj)
          for i=1:size(obj.arm_stc_vec,2)
             obj.action_value(i,:) = zeros(1,obj.arm_stc_vec{i}.n);
             obj.number_of_update(i,:) = zeros(1,obj.arm_stc_vec{i}.n);
-            obj.reward_matrix(i,:) =  zeros(1,obj.arm_stc_vec{i}.n);
          end
       end
       

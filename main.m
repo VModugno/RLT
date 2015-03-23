@@ -7,47 +7,72 @@ clc
 
 
 arm_stc1.n = 10;
-arm_stc1.mean = [1.5 1.2 1.55 0.8 .85 0.9 1.05 1.1 1.25 1.3];
-arm_stc1.var  = [1   1   1    1   1   1   1    1   1    1];
+arm_stc1.mean = [];
+arm_stc1.var  = [];
 average_range = [0,10];
 variance_range = [0,5];
+update_distribution = 'Normal';
+lever_distribution  = 'Normal';
 
 
 arm_stc_vec{1} = arm_stc1; 
 start_action_value = zeros(1,arm_stc1.n);
+% epsilon greedy
 eps = 0.1;
+% soft max
+tau = 0.01;
 
+% simulation value
 trials = 1000;
 plays  = 1000;
+update = 'no';
 
-
-bandit = Bandit(arm_stc1,average_range,variance_range);
-policy = RL.EpsGreedy(arm_stc_vec,start_action_value,eps);
+% object
+bandit = Bandit(arm_stc1,average_range,variance_range,update_distribution,lever_distribution);
+% policy search method
+policy1 = RL.EpsGreedy(arm_stc_vec,start_action_value,eps);
+policy2 = RL.SoftMax(arm_stc_vec,start_action_value,tau);
+% policy selected
+policy{1} = policy1;
+%policy{2} = policy2;
 
 
 all_reward =zeros(trials,plays);
 cur_reward = zeros(1,plays);
 
 for i =1:trials
-%    up = 0;
+   i % current trial
    for j = 1:plays
-
-      [act,flag_max] = policy.ActionSelection(1);
-      reward = bandit.PullLever(act);
-      policy.UpdatePolicy(1,act,reward);
-
-      % in this way i take into account only the exploitation reward and 
-      % and i dont register the exploration reward
-%      if(flag_max)
-         cur_reward(j) = policy.action_value(1,act);
-%         up = up + 1;
-%      end
-
+      
+      reward = bandit.PullAllLever();
+      
+      for k = 1:size(policy,2)
+         act = policy{k}.ActionSelection(1);
+         policy{k}.UpdatePolicy(1,act,reward(1,act));
+         cur_reward(k,j) = policy{k}.action_value(1,act);
+      end
+      
    end
-   policy.CleanPolicy();
-   all_reward(i,:) = cur_reward;
+   
+   for kk = 1:size(policy,2)
+      policy{kk}.CleanPolicy();
+       all_reward(i,:,k) = cur_reward(k,:);
+   end
+   
+   if(strcmp(update,'yes'))
+      bandit.UpdateLever();
+   end
+   
+  
+end
+
+% compute the mean value for each play on every trial
+for kk = 1:size(policy,2)
+   avg_reward_per_play(:,kk) = mean(all_reward(:,:,k),1)';
 end
 
 
-   avg_reward_per_play = sum(all_reward)/trials;
+% plot result for each policy
+plot(avg_reward_per_play);
+
 
